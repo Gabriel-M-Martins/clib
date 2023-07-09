@@ -1,6 +1,8 @@
+#[allow(unused)]
+
 use std::{io, thread, time::{Duration, Instant}, sync::mpsc};
 use crossterm::{terminal::{disable_raw_mode, LeaveAlternateScreen, EnterAlternateScreen, enable_raw_mode}, execute, event::{DisableMouseCapture, EnableMouseCapture, self, Event, KeyCode}};
-use tui::{backend::{CrosstermBackend, Backend}, Terminal, widgets::{Borders, Block}, Frame, layout::{Layout, Constraint, Direction}};
+use tui::{backend::{CrosstermBackend, Backend}, Terminal, widgets::{Borders, Block, ListItem, List}, Frame, layout::{Layout, Constraint, Direction}, text::Text, style::{Style, Modifier, Color}};
 
 enum CEvent<I> {
     Input(I),
@@ -17,6 +19,16 @@ fn main() -> Result<(), io::Error>{
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
     // ---------------------------------------------------------------------------------------------------  
+
+    let mut app = App {
+        state: AppState::List,
+        snippets: vec![
+            Snippet { command: "teste".to_string(), description: "desc".to_string() },
+            Snippet { command: "teste2".to_string(), description: "descricao maior e tal e mais cheio de coisa e info e pah ne".to_string() },
+            Snippet { command: "teste3".to_string(), description: "descricao maior e tal e mais cheio de coisa e info e pah ne, agora com ainda mais texto e coisarada ne time vamo quebra a linha porra".to_string() },
+        ],
+        selected: None,
+    };
 
     // input thread --------------------------------------------------------------------------------------
     let (tx, rx) = mpsc::channel();
@@ -47,7 +59,7 @@ fn main() -> Result<(), io::Error>{
 
     // main thread | draw loop ----------------------------------------------------------------------------
     loop {
-        terminal.draw(|f| ui(f))?;
+        terminal.draw(|f| ui(f, &mut app))?;
 
         // handle input
         if let Ok(rx) = rx.recv() {
@@ -79,34 +91,88 @@ fn main() -> Result<(), io::Error>{
 }
 
 
-fn ui<B: Backend>(f: &mut Frame<B>) {
-    let main_chunks = Layout::default()
+fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+    let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(0)
         .constraints(
             [
-                Constraint::Percentage(90),
+                Constraint::Percentage(10),
+                Constraint::Percentage(80),
                 Constraint::Percentage(10),
             ]
             .as_ref(),
         )
         .split(f.size());
 
-    let chunks = Layout::default()
+    let middle_chunks = Layout::default()
         .direction(Direction::Horizontal)
         .margin(0)
-        .constraints([
-            Constraint::Percentage(70),
-            Constraint::Percentage(30),
-        ])
-        .split(main_chunks[0]);
+        .constraints(
+            [
+                Constraint::Percentage(75),
+                Constraint::Percentage(25),
+            ]
+            .as_ref(),
+        )
+        .split(chunks[1]);
 
-    let inspect_block = Block::default().title("Inspect").borders(Borders::ALL);
-    f.render_widget(inspect_block, chunks[0]);
+    let tabs_block = Block::default().title("Commands").borders(Borders::ALL);
+    f.render_widget(tabs_block, chunks[0]);
 
-    let list_block = Block::default().title("List").borders(Borders::ALL);
-    f.render_widget(list_block, chunks[1]);
+    let items: Vec<ListItem> = app.snippets
+        .iter()
+        .map(|s| { 
+            let mut title = Text::styled(s.command.clone(), Style::default().add_modifier(Modifier::BOLD));
+            
+            // let sub_text = Text::styled(s.description.clone(), Style::default().add_modifier(Modifier::DIM));
+            // title.extend(sub_text);
 
+            let width: usize = (middle_chunks[0].width - 1).into();
+            let wrapped_text = textwrap::wrap(s.description.as_str(), width);
+            
+            let sub_text: Vec<Text> = wrapped_text
+                .iter()
+                .map(|t| {
+                    Text::styled(t.to_owned(), Style::default().add_modifier(Modifier::DIM)) 
+                })
+                .collect();
+            
+            sub_text.iter()
+                .for_each(|t| {
+                    title.extend(t.clone());
+                });
+
+            return ListItem::new(title);
+        }).collect();
+    
+    let snippets_list = List::new(items)
+        .block(Block::default().title("Snippets").borders(Borders::ALL))
+        .highlight_style(tui::style::Style::default().fg(tui::style::Color::Yellow))
+        .highlight_symbol(">> ");
+
+    f.render_widget(snippets_list, middle_chunks[0]);
+
+    let category_list = Block::default().title("Categories").borders(Borders::ALL);
+    f.render_widget(category_list, middle_chunks[1]);
+    
     let search_block = Block::default().title("Search").borders(Borders::ALL);
-    f.render_widget(search_block, main_chunks[1]);
+    f.render_widget(search_block, chunks[2]);
+}
+
+
+struct App<'a> {
+    state: AppState,
+    snippets: Vec<Snippet>,
+    selected: Option<&'a Snippet>,
+}
+
+enum AppState {
+    List,
+    Search,
+}
+
+struct Snippet {
+    command: String,
+    description: String,
 }
