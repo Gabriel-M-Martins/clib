@@ -53,6 +53,7 @@ dependencies = [
  "crossterm",
  "ratatui",
  "textwrap",
+ "tui-input",
 ]
 
 [[package]]
@@ -276,6 +277,16 @@ checksum = "222a222a5bfe1bba4a77b45ec488a741b3cb8872e5e499451fd7d0129c9c7c3d"
 dependencies = [
  "smawk",
  "unicode-linebreak",
+ "unicode-width",
+]
+
+[[package]]
+name = "tui-input"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c0f17f46cee09b40dca10deac554e020fc2052c14f20192728cee884288227b"
+dependencies = [
+ "crossterm",
  "unicode-width",
 ]
 

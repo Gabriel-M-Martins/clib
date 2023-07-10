@@ -2,13 +2,14 @@
 
 use std::{io, thread, time::{Duration, Instant}, sync::mpsc};
 use crossterm::{terminal::{disable_raw_mode, LeaveAlternateScreen, EnterAlternateScreen, enable_raw_mode}, execute, event::{DisableMouseCapture, EnableMouseCapture, self, Event, KeyCode}};
-use ratatui::{backend::{CrosstermBackend, Backend}, Terminal, widgets::{Borders, Block, ListItem, List}, Frame, layout::{Layout, Constraint, Direction}, text::Text, style::{Style, Modifier, Color}};
+use ratatui::{backend::{CrosstermBackend, Backend}, Terminal, widgets::{Borders, Block, ListItem, List, Paragraph}, Frame, layout::{Layout, Constraint, Direction}, text::Text, style::{Style, Modifier, Color}};
 
 mod app;
-use app::{App, AppState, AppEvent};
+use app::{App, AppState, AppEvent, AppInputMode};
 
 mod data;
 use data::Snippet;
+use tui_input::{Input, backend::crossterm::EventHandler};
 
 fn main() -> Result<(), io::Error>{
     // setup terminal ------------------------------------------------------------------------------------
@@ -21,15 +22,7 @@ fn main() -> Result<(), io::Error>{
     terminal.clear()?;
     // ---------------------------------------------------------------------------------------------------  
 
-    let mut app = App {
-        state: AppState::List,
-        snippets: vec![
-            Snippet { command: "teste".to_string(), description: "desc".to_string(), category: None },
-            Snippet { command: "teste2".to_string(), description: "descricao maior e tal e mais cheio de coisa e info e pah ne".to_string(), category: Some("dotnet".to_string())},
-            Snippet { command: "teste3".to_string(), description: "descricao maior e tal e mais cheio de coisa e info e pah ne, agora com ainda mais texto e coisarada ne time vamo quebra a linha porra".to_string(), category: None },
-        ],
-        selected: None,
-    };
+    let mut app = App::default();
 
     // input thread --------------------------------------------------------------------------------------
     let (tx, rx) = mpsc::channel();
@@ -42,7 +35,7 @@ fn main() -> Result<(), io::Error>{
                 .checked_sub(last_tick.elapsed())
                 .unwrap_or_else(|| Duration::from_secs(0));
 
-            if event::poll(timeout).expect("poll worls") {
+            if event::poll(timeout).expect("poll works") {
                 if let Event::Key(key) = event::read().expect("can read events") {
                     tx.send(AppEvent::Input(key)).expect("can send events");
                 }
@@ -65,11 +58,35 @@ fn main() -> Result<(), io::Error>{
         // handle input
         if let Ok(rx) = rx.recv() {
             match rx {
-                AppEvent::Input(event) => match event.code {
-                    KeyCode::Char('q') => {
-                        break;
+                AppEvent::Input(event) => {
+                    match app.input_mode {
+                        AppInputMode::Normal => {
+                            match event.code {
+                                KeyCode::Char('q') | KeyCode::Char('Q') => {
+                                    break;
+                                }
+                                
+                                KeyCode::Char('s') | KeyCode::Char('S') => {
+                                    app.input_mode = AppInputMode::Searching;
+                                }
+                                
+                                _ => {}
+                            }
+                        },
+                        AppInputMode::Searching => match event.code {
+                            KeyCode::Enter => {
+                                app.input_mode = AppInputMode::Normal;
+                            }
+                            
+                            KeyCode::Esc => {
+                                app.input_mode = AppInputMode::Normal;
+                            }
+
+                            _ => {
+                                app.input.handle_event(&Event::Key(event));
+                            }
+                        }
                     }
-                    _ => {}
                 },
                 AppEvent::Tick => {}
             }
@@ -121,7 +138,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let tabs_block = Block::default().title("Commands").borders(Borders::ALL);
     f.render_widget(tabs_block, chunks[0]);
 
-    //  snippets list -------------------------------------------------------------------------------------------------
+    // MARK: -  snippets list ------------------------------------------------------------------------------------
     let items: Vec<ListItem> = app.snippets
         .iter()
         .map(|s| { 
@@ -130,7 +147,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             // let sub_text = Text::styled(s.description.clone(), Style::default().add_modifier(Modifier::DIM));
             // title.extend(sub_text);
 
-            let width: usize = (middle_chunks[0].width - 2).into();
+            let width = (middle_chunks[0].width - 2) as usize;
             let wrapped_text = textwrap::wrap(s.description.as_str(), width);
             
             let sub_text: Vec<Text> = wrapped_text
@@ -157,7 +174,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     // ---------------------------------------------------------------------------------------------------------------
     
 
-    // category list -------------------------------------------------------------------------------------------------
+    // MARK: - category list -----------------------------------------------------------------------------------------
     let items: Vec<ListItem> = app.snippets
         .iter()
         .fold(vec![], |mut acc, s| {
@@ -187,7 +204,36 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.render_widget(category_list, middle_chunks[1]);
     // ---------------------------------------------------------------------------------------------------------------
 
+    // MARK: - input -------------------------------------------------------------------------------------------------
+    let width = chunks[2].width.max(3) - 3;
+    let scroll = app.input.visual_scroll(width as usize);
 
-    let search_block = Block::default().title("Search").borders(Borders::ALL);
-    f.render_widget(search_block, chunks[2]);
+    let input = Paragraph::new(app.input.value())
+        .style(match app.input_mode {
+            AppInputMode::Normal => Style::default(),
+            AppInputMode::Searching => Style::default().fg(Color::Yellow),
+        })
+        .scroll((0, scroll as u16))
+        .block(Block::default().borders(Borders::ALL).title("Search"));
+
+    f.render_widget(input, chunks[2]);
+
+    match app.input_mode {
+        AppInputMode::Normal =>
+            // Hide the cursor. `Frame` does this by default, so we don't need to do anything here
+            {}
+
+        AppInputMode::Searching => {
+            // Make the cursor visible and ask tui-rs to put it at the specified coordinates after rendering
+            f.set_cursor(
+                // Put cursor past the end of the input text
+                chunks[2].x
+                    + ((app.input.visual_cursor()).max(scroll) - scroll) as u16
+                    + 1,
+                // Move one line down, from the border to the input line
+                chunks[2].y + 1,
+            )
+        }
+    }
+    // ---------------------------------------------------------------------------------------------------------------
 }
