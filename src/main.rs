@@ -4,10 +4,11 @@ use std::{io, thread, time::{Duration, Instant}, sync::mpsc};
 use crossterm::{terminal::{disable_raw_mode, LeaveAlternateScreen, EnterAlternateScreen, enable_raw_mode}, execute, event::{DisableMouseCapture, EnableMouseCapture, self, Event, KeyCode}};
 use tui::{backend::{CrosstermBackend, Backend}, Terminal, widgets::{Borders, Block, ListItem, List}, Frame, layout::{Layout, Constraint, Direction}, text::Text, style::{Style, Modifier, Color}};
 
-enum CEvent<I> {
-    Input(I),
-    Tick
-}
+mod app;
+use app::{App, AppState, AppEvent};
+
+mod data;
+use data::Snippet;
 
 fn main() -> Result<(), io::Error>{
     // setup terminal ------------------------------------------------------------------------------------
@@ -43,12 +44,12 @@ fn main() -> Result<(), io::Error>{
 
             if event::poll(timeout).expect("poll worls") {
                 if let Event::Key(key) = event::read().expect("can read events") {
-                    tx.send(CEvent::Input(key)).expect("can send events");
+                    tx.send(AppEvent::Input(key)).expect("can send events");
                 }
             }
 
             if last_tick.elapsed() >= tick_rate {
-                if let Ok(_) = tx.send(CEvent::Tick) {
+                if let Ok(_) = tx.send(AppEvent::Tick) {
                     last_tick = Instant::now();
                 }
             }
@@ -64,13 +65,13 @@ fn main() -> Result<(), io::Error>{
         // handle input
         if let Ok(rx) = rx.recv() {
             match rx {
-                CEvent::Input(event) => match event.code {
+                AppEvent::Input(event) => match event.code {
                     KeyCode::Char('q') => {
                         break;
                     }
                     _ => {}
                 },
-                CEvent::Tick => {}
+                AppEvent::Tick => {}
             }
         }
     }
@@ -189,22 +190,4 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let search_block = Block::default().title("Search").borders(Borders::ALL);
     f.render_widget(search_block, chunks[2]);
-}
-
-
-struct App<'a> {
-    state: AppState,
-    snippets: Vec<Snippet>,
-    selected: Option<&'a Snippet>,
-}
-
-enum AppState {
-    List,
-    Search,
-}
-
-struct Snippet {
-    command: String,
-    description: String,
-    category: Option<String>,
 }
