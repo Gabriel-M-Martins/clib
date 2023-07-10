@@ -2,7 +2,7 @@
 
 use std::{io, thread, time::{Duration, Instant}, sync::mpsc};
 use crossterm::{terminal::{disable_raw_mode, LeaveAlternateScreen, EnterAlternateScreen, enable_raw_mode}, execute, event::{DisableMouseCapture, EnableMouseCapture, self, Event, KeyCode}};
-use tui::{backend::{CrosstermBackend, Backend}, Terminal, widgets::{Borders, Block, ListItem, List}, Frame, layout::{Layout, Constraint, Direction}, text::Text, style::{Style, Modifier, Color}};
+use ratatui::{backend::{CrosstermBackend, Backend}, Terminal, widgets::{Borders, Block, ListItem, List}, Frame, layout::{Layout, Constraint, Direction}, text::Text, style::{Style, Modifier, Color}};
 
 mod app;
 use app::{App, AppState, AppEvent};
@@ -150,7 +150,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     
     let snippets_list = List::new(items)
         .block(Block::default().title("Snippets").borders(Borders::ALL))
-        .highlight_style(tui::style::Style::default().fg(tui::style::Color::Yellow))
+        .highlight_style(Style::default().fg(Color::Yellow))
         .highlight_symbol(">> ");
 
     f.render_widget(snippets_list, middle_chunks[0]);
@@ -181,7 +181,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let category_list = List::new(items)
         .block(Block::default().title("Categories").borders(Borders::ALL))
-        .highlight_style(tui::style::Style::default().fg(tui::style::Color::Yellow))
+        .highlight_style(Style::default().fg(Color::Yellow))
         .highlight_symbol(">> ");
     
     f.render_widget(category_list, middle_chunks[1]);
