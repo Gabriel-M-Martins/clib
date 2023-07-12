@@ -2,10 +2,10 @@
 
 use std::{io, thread, time::{Duration, Instant}, sync::mpsc};
 use crossterm::{terminal::{disable_raw_mode, LeaveAlternateScreen, EnterAlternateScreen, enable_raw_mode}, execute, event::{DisableMouseCapture, EnableMouseCapture, self, Event, KeyCode}};
-use ratatui::{backend::{CrosstermBackend, Backend}, Terminal, widgets::{Borders, Block, ListItem, List, Paragraph}, Frame, layout::{Layout, Constraint, Direction}, text::Text, style::{Style, Modifier, Color}};
+use ratatui::{backend::{CrosstermBackend, Backend}, Terminal, widgets::{Borders, Block, ListItem, List, Paragraph, Tabs}, Frame, layout::{Layout, Constraint, Direction}, text::{Text, Line, Span}, style::{Style, Modifier, Color}, symbols::line};
 
 mod app;
-use app::{App, AppState, AppEvent, AppInputMode};
+use app::{App, AppState, AppEvent, AppInputMode, Commands};
 
 mod data;
 use data::Snippet;
@@ -115,9 +115,9 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .margin(0)
         .constraints(
             [
-                Constraint::Percentage(10),
-                Constraint::Percentage(80),
-                Constraint::Percentage(10),
+                Constraint::Min(3),
+                Constraint::Percentage(100),
+                Constraint::Min(3),
             ]
             .as_ref(),
         )
@@ -135,8 +135,31 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         )
         .split(chunks[1]);
 
-    let tabs_block = Block::default().title("Commands").borders(Borders::ALL);
+
+    // MARK: -  tabs ----------------------------------------------------------------------------------------------
+    let commands = Commands::all_cases();
+    let titles: Vec<Line> = commands
+        .iter()
+        .map(|command| {
+            let (first_letter, rest) = command.stringfy().split_at(1);
+
+            let first_letter = Span::styled(first_letter, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+            let rest = Span::raw(rest);
+
+            let title = Line::from(vec![first_letter, rest]); 
+
+            return title;
+        })
+        .collect();
+
+    let tabs_block = Tabs::new(titles)
+        .block(Block::default().title("Tabs").borders(Borders::ALL))
+        .style(Style::default().fg(Color::White))
+        .highlight_style(Style::default().fg(Color::Yellow))
+        .divider("||");
+
     f.render_widget(tabs_block, chunks[0]);
+    // -----------------------------------------------------------------------------------------------------------
 
     // MARK: -  snippets list ------------------------------------------------------------------------------------
     let items: Vec<ListItem> = app.snippets
