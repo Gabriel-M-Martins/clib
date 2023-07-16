@@ -1,33 +1,70 @@
+extern crate serde;
+
 use super::Snippet;
+use serde::{Deserialize, Serialize};
 use tui_input::Input;
 
-pub struct App<'a> {
+#[derive(Deserialize, Serialize)]
+pub struct App {
     pub state: AppState,
     
     pub snippets: Vec<Snippet>,
-    pub selected: Option<&'a Snippet>,
+    pub categories: Vec<Category>,
     
     pub input: Input,
     pub input_mode: AppInputMode,
 }
 
-impl Default for App<'_> {
+impl Default for App {
     fn default() -> Self {
         App {
             state: AppState::Snippets,
             snippets: Vec::new(),
-            selected: None,
+            categories: vec![ Category {name: "No category".to_string(), indices: Vec::new()} ],
             input: Input::default(),
             input_mode: AppInputMode::Normal,
         }
     }
 }
 
+impl App {
+    pub fn add_snippet(&mut self, snippet: Snippet) {
+        match &snippet.category  {
+            Some(category) => match self.categories.iter().position(|c| c.name == *category) {
+                Some(idx) => self.categories[idx].indices.push(self.snippets.len()),
+                
+                None => self.categories.push(Category {
+                    name: category.clone(),
+                    indices: vec![self.snippets.len()],
+                }),
+            }
+
+            None => {
+                self.categories[0].indices.push(self.snippets.len());
+            }
+        }
+
+        self.snippets.push(snippet);
+    }
+
+    pub fn remove_snippet(&mut self, idx: usize) {
+        let snippet = self.snippets.remove(idx);
+
+        if let Some(category) = snippet.category {
+            if let Some(idx) = self.categories.iter().position(|c| c.name == *category) {
+                self.categories.remove(idx);
+            }
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize)]
 pub enum AppInputMode {
     Normal,
     Searching,
 }
 
+#[derive(Deserialize, Serialize)]
 pub enum AppState {
     Snippets,
     Categories,
@@ -66,14 +103,17 @@ impl Commands {
 
     pub fn all_cases() -> Vec<Commands> {
         vec![
-            Commands::Quit,
             Commands::Search,
-            Commands::Select,
-            Commands::Delete,
-            Commands::Edit,
             Commands::New,
-            Commands::Help,
-            Commands::None,
+            Commands::Edit,
+            Commands::Delete,
+            Commands::Quit,
         ]
     }
+}
+
+#[derive(Deserialize, Serialize, PartialEq)]
+pub struct Category {
+    pub name: String,
+    pub indices: Vec<usize>,
 }

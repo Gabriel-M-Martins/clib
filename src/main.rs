@@ -23,6 +23,14 @@ fn main() -> Result<(), io::Error>{
     // ---------------------------------------------------------------------------------------------------  
 
     let mut app = App::default();
+    let snippets = vec![
+        Snippet { command: "fooo".to_string(), description: "descricaozona po e tal".to_string(), category: None },
+        Snippet { command: "baaar".to_string(), description: "outra descricaozona po e tal".to_string(), category: Some("teste".to_string()) },
+    ];
+
+    for snippet in snippets {
+        app.add_snippet(snippet);
+    }
 
     // input thread --------------------------------------------------------------------------------------
     let (tx, rx) = mpsc::channel();
@@ -155,8 +163,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let tabs_block = Tabs::new(titles)
         .block(Block::default().title("Tabs").borders(Borders::ALL))
         .style(Style::default().fg(Color::White))
-        .highlight_style(Style::default().fg(Color::Yellow))
-        .divider("||");
+        .divider("|");
 
     f.render_widget(tabs_block, chunks[0]);
     // -----------------------------------------------------------------------------------------------------------
@@ -198,26 +205,14 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     
 
     // MARK: - category list -----------------------------------------------------------------------------------------
-    let items: Vec<ListItem> = app.snippets
+    let items: Vec<ListItem> = app.categories
         .iter()
         .fold(vec![], |mut acc, s| {
-            match s.category {
-                Some(ref c) => {
-                    if acc.contains(c) {
-                        return acc;
-                    }
-                    acc.push(c.clone());
-                },
-                None => {},
-            }
+            let item = ListItem::new(s.name.clone());
+            acc.push(item);
 
-            return acc
-        })
-        .iter()
-        .map(|s| {
-            ListItem::new(s.clone())
-        })
-        .collect();
+            return acc;
+        });
 
     let category_list = List::new(items)
         .block(Block::default().title("Categories").borders(Borders::ALL))

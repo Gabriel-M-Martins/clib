@@ -9,4 +9,6 @@ edition = "2021"
 crossterm = "0.26.1"
 textwrap = "0.16.0"
 ratatui = "0.21.0"
-tui-input = "0.7.1"
+tui-input = {version = "0.7.1", features = ["crossterm", "serde"]}
+rmp-serde = "1.1.1"
+serde = { version = "1.0.171", features = ["derive"]}
