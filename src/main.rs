@@ -5,7 +5,7 @@ use crossterm::{terminal::{disable_raw_mode, LeaveAlternateScreen, EnterAlternat
 use ratatui::{backend::{CrosstermBackend, Backend}, Terminal, widgets::{Borders, Block, ListItem, List, Paragraph, Tabs}, Frame, layout::{Layout, Constraint, Direction}, text::{Text, Line, Span}, style::{Style, Modifier, Color}, symbols::line};
 
 mod app;
-use app::{App, AppState, AppEvent, AppInputMode, Commands};
+use app::{App, State, AppInputMode, Commands};
 
 mod data;
 use data::Snippet;
@@ -45,12 +45,12 @@ fn main() -> Result<(), io::Error>{
 
             if event::poll(timeout).expect("poll works") {
                 if let Event::Key(key) = event::read().expect("can read events") {
-                    tx.send(AppEvent::Input(key)).expect("can send events");
+                    tx.send(app::Event::Input(key)).expect("can send events");
                 }
             }
 
             if last_tick.elapsed() >= tick_rate {
-                if let Ok(_) = tx.send(AppEvent::Tick) {
+                if let Ok(_) = tx.send(app::Event::Tick) {
                     last_tick = Instant::now();
                 }
             }
@@ -66,7 +66,7 @@ fn main() -> Result<(), io::Error>{
         // handle input
         if let Ok(rx) = rx.recv() {
             match rx {
-                AppEvent::Input(event) => {
+                app::Event::Input(event) => {
                     match app.input_mode {
                         AppInputMode::Normal => {
                             match event.code {
@@ -96,7 +96,7 @@ fn main() -> Result<(), io::Error>{
                         }
                     }
                 },
-                AppEvent::Tick => {}
+                app::Event::Tick => {}
             }
         }
     }
@@ -118,6 +118,29 @@ fn main() -> Result<(), io::Error>{
 
 
 fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+    match app.state {
+        State::Main => main_screen(f, app),
+        State::NewSnippet => {},
+        State::Settings => {},
+    }
+}
+
+
+fn settings_screen<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(0)
+        .constraints([
+            Constraint::Percentage(100),
+        ])
+        .split(f.size());
+        
+    
+}
+
+
+// MARK: - main screen -----------------------------------------------------------------------------------------
+fn main_screen<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(0)

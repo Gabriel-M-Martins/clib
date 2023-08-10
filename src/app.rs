@@ -6,7 +6,7 @@ use tui_input::Input;
 
 #[derive(Deserialize, Serialize)]
 pub struct App {
-    pub state: AppState,
+    pub state: State,
     
     pub snippets: Vec<Snippet>,
     pub categories: Vec<Category>,
@@ -18,7 +18,7 @@ pub struct App {
 impl Default for App {
     fn default() -> Self {
         App {
-            state: AppState::Snippets,
+            state: State::Main,
             snippets: Vec::new(),
             categories: vec![ Category {name: "No category".to_string(), indices: Vec::new()} ],
             input: Input::default(),
@@ -56,6 +56,10 @@ impl App {
             }
         }
     }
+
+    pub fn save(self) {
+
+    }
 }
 
 #[derive(Deserialize, Serialize)]
@@ -65,13 +69,13 @@ pub enum AppInputMode {
 }
 
 #[derive(Deserialize, Serialize)]
-pub enum AppState {
-    Snippets,
-    Categories,
-    Search,
+pub enum State {
+    Main,
+    NewSnippet,
+    Settings
 }
 
-pub enum AppEvent<I> {
+pub enum Event<I> {
     Input(I),
     Tick
 }
